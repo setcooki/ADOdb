@@ -1119,8 +1119,22 @@ class ADODB_mysqli extends ADOConnection {
 		}
 
 		if (!is_array($sql)) {
-			$typeString = '';
-			$typeArray  = array(''); //placeholder for type list
+			$typeString 	= '';
+			$bulkBindArray 	= false;
+			$typeArray  	= array(''); //placeholder for type list
+
+			/*
+			* Check if we are bulkbinding. If so,
+			* inputarr is a 2d array, we make a gross assumption
+			* that all of the rows have the same number of columns,
+			* we will use the elements of 
+			*/
+			if (is_array($inputarr[0]))
+			{
+				$bulkBindArray = $inputarr;
+				$inputarr	   = $bulkBindArray[0];
+			}
+
 
 			foreach ($inputarr as $v) {
 				$typeArray[] = $v;
@@ -1167,7 +1181,7 @@ class ADODB_mysqli extends ADOConnection {
 		// return value of the stored proc (ie the number of rows affected).
 		// Commented out for reasons of performance. You should retrieve every recordset yourself.
 		//	if (!mysqli_next_result($this->connection->_connectionID))	return false;
-
+		
 		if (is_array($sql)) {
 
 			// Prepare() not supported because mysqli_stmt_execute does not return a recordset, but
@@ -1194,6 +1208,20 @@ class ADODB_mysqli extends ADOConnection {
 		}
 		else if (is_string($sql) && is_array($inputarr))
 		{
+
+			/*
+			print "Ia=" . $inputarr[0]; exit;
+			$bulkBindArray = false;
+			if (is_array($inputarr[0]))
+			{
+				$bulkBindArray = $inputarr;
+				$inputarr	   = $bulkBindArray[0];
+			}
+			print_r($sql);
+			print_r($inputarr);
+			
+			exit;	
+			*/		
 			/*
 			* This is support for true prepared queries
 			* with bound parameters
@@ -1235,6 +1263,7 @@ class ADODB_mysqli extends ADOConnection {
 				return false;
 			}
 
+			//print_r($inputarr); exit;
 			/*
 			* Must pass references into call_user_func_array
 			*/
