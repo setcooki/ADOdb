@@ -26,15 +26,15 @@ global $ADODB_INCLUDED_MEMCACHE;
 $ADODB_INCLUDED_MEMCACHE = 1;
 
 global $ADODB_INCLUDED_CSV;
-if (empty($ADODB_INCLUDED_CSV)) 
+if (empty($ADODB_INCLUDED_CSV))
 	include_once(ADODB_DIR.'/adodb-csvlib.inc.php');
 
-class ADODB_Cache_MemCache 
+class ADODB_Cache_MemCache
 {
 	/*
 	* Prevents parent class calling non-existant function
 	*/
-	public $createdir = false; 
+	public $createdir = false;
 
 	/*
 	* populated with the proper library on connect
@@ -42,42 +42,42 @@ class ADODB_Cache_MemCache
 	* between memcache and memcached
 	*/
 	private $memCacheLibrary = false;
-	
+
 	/*
 	* array of hosts
 	*/
-	private $hosts;	
-	
+	private $hosts;
+
 	/*
 	* Connection Port, uses default
 	*/
 	private $port 	= 11211;
-	
+
 	/*
 	* memcache compression with zlib
 	*/
-	private $compress = false; 
+	private $compress = false;
 
 	/*
 	* Array of options for memcached only
 	*/
 	private $options = false;
-	
+
 	/*
 	* Internal flag indicating successful connection
 	*/
 	private $isConnected = false;
-	
+
 	/*
 	* Handle for the Memcache library
 	*/
 	private $memcacheLibrary = false;
-	
+
 	/*
 	* New server feature controller lists available servers
 	*/
 	private $serverControllers = array();
-	
+
 	/*
 	* New server feature controller uses granular
 	* server controller
@@ -89,13 +89,13 @@ class ADODB_Cache_MemCache
 		'key'=>''
 		);
 
-	
+
 	/*
 	* An integer index into the libraries
 	*/
 	const MCLIB  = 1;
 	const MCLIBD = 2;
-	
+
 	/*
 	* Xrefs the library flag to the actual class name
 	*/
@@ -103,12 +103,12 @@ class ADODB_Cache_MemCache
 		1=>'Memcache',
 		2=>'Memcached'
 		);
-	
+
 	/*
 	* An indicator of which library we are using
 	*/
 	private $libraryFlag;
-	
+
 	/**
 	* constructor passes in a ADONewConnection Object
 	*
@@ -122,7 +122,7 @@ class ADODB_Cache_MemCache
 		$this->port  	= $db->memCachePort;
 		$this->compress = $db->memCacheCompress;
 		$this->options  = $db->memCacheOptions;
-		
+
 	}
 
 	/**
@@ -138,7 +138,7 @@ class ADODB_Cache_MemCache
 		* do we have memcache or memcached? see the note
 		* at adodb.org on memcache
 		*/
-		if (class_exists('Memcache')) 
+		if (class_exists('Memcache'))
 			$this->libraryFlag = self::MCLIB;
 		elseif (class_exists('Memcached'))
 			$this->libraryFlag = self::MCLIBD;
@@ -147,16 +147,16 @@ class ADODB_Cache_MemCache
 			$err = 'Neither the Memcache nor Memcached PECL extensions were found!';
 			return false;
 		}
-		
+
 		$usedLibrary = $this->libraries[$this->libraryFlag];
-		
+
 		$memCache = new $usedLibrary;
 		if (!$memCache)
 		{
 			$err = 'Memcache library failed to initialize';
 			return false;
 		}
-		
+
 		/*
 		* Convert simple compression flag for memcached
 		*/
@@ -179,14 +179,14 @@ class ADODB_Cache_MemCache
 				return false;
 			}
 		}
-		
+
 		/*
 		* Have we passed a controller array
 		*/
-		if (!is_array($this->hosts)) 
+		if (!is_array($this->hosts))
 			$this->hosts = array($this->hosts);
-		
-		if (array_values($this->hosts) == $this->hosts)
+
+		if (is_array($this->hosts) && is_string($this->hosts[0]))
 		{
 			/*
 			* Old way, convert to controller
@@ -194,10 +194,10 @@ class ADODB_Cache_MemCache
 			foreach ($this->hosts as $ipAddress)
 			{
 				$connector = $this->serverControllerTemplate;
-				
+
 				$connector['host'] = $ipAddress;
 				$connector['port'] = $this->port;
-				
+
 				$this->serverControllers[] = $connector;
 			}
 		}
@@ -216,11 +216,11 @@ class ADODB_Cache_MemCache
 					*/
 					$connector['key'] = '';
 					$connector['weight'] = 0;
-					
+
 				}
 				else
 					$connector['weight'] = $connector['weight'] ? (int)$connector['weight']:0;
-				
+
 				$this->serverControllers[] = $connector;
 			}
 		}
@@ -231,7 +231,7 @@ class ADODB_Cache_MemCache
 		if ($this->libraryFlag == self::MCLIBD)
 		{
 			$existingServers = $memCache->getServerList();
-			if (is_array($existingServers))
+			if (is_array($existingServers) && !empty($existingServers))
 			{
 				/*
 				* Use the existing configuration
@@ -242,7 +242,7 @@ class ADODB_Cache_MemCache
 			}
 		}
 		$failcnt = 0;
-		foreach($this->serverControllers as $controller) 
+		foreach($this->serverControllers as $controller)
 		{
 			switch($this->libraryFlag)
 			{
@@ -254,7 +254,7 @@ class ADODB_Cache_MemCache
 				if (!@$memCache->addServer($controller['host'],$controller['port'],$controller['weight']))
 					$failcnt++;
 			}
-			
+
 		}
 		if ($failcnt == sizeof($this->serverControllers))
 		{
@@ -262,7 +262,7 @@ class ADODB_Cache_MemCache
 			return false;
 
 		}
-		
+
 		$this->memcacheLibrary = $memCache;
 
 		/*
@@ -285,19 +285,19 @@ class ADODB_Cache_MemCache
 	public function writeCache($filename, $contents, $debug, $secs2cache)
 	{
 		$err = '';
-		if (!$this->isConnected  && $debug) 
+		if (!$this->isConnected  && $debug)
 		{
 			/*
 			* Call to writecache before connect, try
 			* to connect
 			*/
-			if (!$this->connect($err)) 
+			if (!$this->connect($err))
 				ADOConnection::outp($err);
 		}
-		else if (!$this->isConnected) 
+		else if (!$this->isConnected)
 			$this->connect($err);
-		
-		if (!$this->memcacheLibrary) 
+
+		if (!$this->memcacheLibrary)
 			return false;
 
 		$failed=false;
@@ -333,17 +333,17 @@ class ADODB_Cache_MemCache
 	* @param string $err The query results
 	* @param int	$secs2cache
 	* @param obj	$rsClass **UNUSED**
-	
+
 	* @return the record or false.
 	*/
 	public function readCache($filename, &$err, $secs2cache, $rsClass)
 	{
 		if (!$this->isConnected) $this->connect($err);
-		if (!$this->memcacheLibrary) 
+		if (!$this->memcacheLibrary)
 			return false;
 
 		$rs = $this->memcacheLibrary->get($filename);
-		if (!$rs) 
+		if (!$rs)
 		{
 			$err = 'Item with such key doesn\'t exist on the memcache server.';
 			return false;
@@ -358,11 +358,11 @@ class ADODB_Cache_MemCache
 			$err = 'Unable to unserialize $rs';
 			return $false;
 		}
-		if ($rs->timeCreated == 0) 
+		if ($rs->timeCreated == 0)
 			return $rs; // apparently have been reports that timeCreated was set to 0 somewhere
 
 		$tdiff = intval($rs->timeCreated+$secs2cache - time());
-		if ($tdiff <= 2) 
+		if ($tdiff <= 2)
 		{
 			switch($tdiff)
 			{
@@ -390,7 +390,7 @@ class ADODB_Cache_MemCache
 	* Flushes all of the stored memcache data
 	*
 	* @param	bool	$debug
-	* 
+	*
 	* @return int The response from the memcache server
 	*/
 	public function flushAll($debug=false)
@@ -399,15 +399,15 @@ class ADODB_Cache_MemCache
 			$err = '';
 			if (!$this->connect($err) && $debug) ADOConnection::outp($err);
 		}
-		if (!$this->memcacheLibrary) 
+		if (!$this->memcacheLibrary)
 			return false;
 
 		$del = $this->memcacheLibrary->flush();
 
 		if ($debug)
-			if (!$del) 
+			if (!$del)
 				ADOConnection::outp("flushall: failed!<br>\n");
-			else 
+			else
 				ADOConnection::outp("flushall: succeeded!<br>\n");
 
 		return $del;
@@ -418,17 +418,17 @@ class ADODB_Cache_MemCache
 	*
 	* @param	str		$filname	The MD5 of the query to flush
 	* @param	bool	$debug
-	* 
+	*
 	* @return int The response from the memcache server
 	*/
 	public function flushCache($filename, $debug=false)
 	{
-		if (!$this->isConnected) 
+		if (!$this->isConnected)
 		{
 			$err = '';
 			if (!$this->connect($err) && $debug) ADOConnection::outp($err);
 		}
-		if (!$this->memcacheLibrary) 
+		if (!$this->memcacheLibrary)
 			return false;
 
 		$del = $this->memcacheLibrary->delete($filename);
